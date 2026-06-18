@@ -344,7 +344,10 @@ cc_args(
 
 cc_args(
     name = "dbg_c_compile_flags",
-    actions = ["@rules_cc//cc/toolchains/actions:c_compile"],
+    actions = [
+        "@rules_cc//cc/toolchains/actions:c_compile",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+    ],
     args = dbg_c_compile_flags,
 )
 
@@ -356,7 +359,10 @@ cc_args(
 
 cc_args(
     name = "fastbuild_c_compile_flags",
-    actions = ["@rules_cc//cc/toolchains/actions:c_compile"],
+    actions = [
+        "@rules_cc//cc/toolchains/actions:c_compile",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+    ],
     args = fastbuild_c_compile_flags,
 )
 
@@ -368,7 +374,10 @@ cc_args(
 
 cc_args(
     name = "opt_c_compile_flags",
-    actions = ["@rules_cc//cc/toolchains/actions:c_compile"],
+    actions = [
+        "@rules_cc//cc/toolchains/actions:c_compile",
+        "@rules_cc//cc/toolchains/actions:cpp_compile_actions",
+    ],
     args = opt_c_compile_flags,
 )
 
