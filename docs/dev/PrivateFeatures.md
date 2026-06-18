@@ -17,6 +17,7 @@ Required by the `rules_cc` framework to wire compiler/linker/archiver invocation
 | `output_execpath_flags`    | link      | Passes the binary output path (`/OUT:{path}`). |
 | `linker_param_file`        | link      | Passes a response file (`@{param_file}`) to the linker to work around Windows command-line length limits. |
 | `archive_param_file`       | archive   | Same as `linker_param_file` but for the archiver. |
+| `compiler_param_file`      | compile   | Same as `linker_param_file` but for the compiler. |
 | `archiver_input`           | archive   | Iterates `libraries_to_link` and passes object files to `lib.exe`. |
 | `archiver_output`          | archive   | Passes the output `.lib` path (`/OUT:{path}`). |
 | `strip_input`              | strip     | Placeholder — no strip action on Windows, but required by the framework. |

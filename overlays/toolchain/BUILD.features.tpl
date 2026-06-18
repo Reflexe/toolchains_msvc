@@ -18,6 +18,7 @@ cc_feature_set(
         ":no_legacy_features",
         ":linker_param_file",
         ":archive_param_file",
+        ":compiler_param_file",
         ":compiler_input_flags",
         ":compiler_output_flags",
         ":linker_input",
@@ -130,6 +131,11 @@ cc_feature(
     name = "archive_param_file",
     args = ["{args_package}/{COMPILER_KIND}:param_file_args"],
     feature_name = "archive_param_file",
+)
+
+cc_feature(
+    name = "compiler_param_file",
+    feature_name = "compiler_param_file",
 )
 
 cc_feature(

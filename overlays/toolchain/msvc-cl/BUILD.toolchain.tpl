@@ -98,14 +98,10 @@ cc_args(
     ],
     args = [
         "/external:W0",
-        "/external:I",
-        "{msvc_include}",
-        "/external:I",
-        "{winsdk_ucrt_include}",
-        "/external:I",
-        "{winsdk_um_include}",
-        "/external:I",
-        "{winsdk_shared_include}",
+        "/external:I{msvc_include}",
+        "/external:I{winsdk_ucrt_include}",
+        "/external:I{winsdk_um_include}",
+        "/external:I{winsdk_shared_include}",
     ],
     data = [
         "//msvc/include:all_includes",
