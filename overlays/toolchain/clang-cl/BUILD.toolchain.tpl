@@ -81,14 +81,13 @@ cc_args(
     ],
     args = [
         "/lldignoreenv",
-        "/NODEFAULTLIB",
-        "/INCREMENTAL:NO",
+{nodefaultlib_line}        "/INCREMENTAL:NO",
         "/PDBALTPATH:%_PDB%",
         "/Brepro",
         "/PDBSOURCEPATH:.",
     ],
 )
-
+{local_config_cc_compat_args}
 cc_args(
     name = "include_paths",
     actions = [
@@ -260,6 +259,7 @@ cc_toolchain(
         ":release_static_runtime_link",
         ":debug_dynamic_runtime_link",
         ":debug_static_runtime_link",
+        {local_config_cc_compat_toolchain_arg}
     ],
     artifact_name_patterns = [
         "{artifacts_package}:executable",

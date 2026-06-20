@@ -359,6 +359,43 @@ filegroup(
     srcs = glob(["**/*.h", "**/*.hpp"]) + glob(["**/*"], exclude = ["**/*.*"], exclude_directories = 1)
 )
 
+# Per-arch MSVC Tools/lib subdirectories + filegroups. The directory
+# label is forwarded to /LIBPATH: by the toolchain's local_config_cc_compat
+# cc_args (when the extension's local_config_cc_compat option is enabled);
+# the filegroup carries the .lib files into the link action's inputs.
+subdirectory(
+    name = "lib_x64",
+    parent = ":msvc_tree",
+    path = "Tools/lib/x64",
+)
+
+subdirectory(
+    name = "lib_x86",
+    parent = ":msvc_tree",
+    path = "Tools/lib/x86",
+)
+
+subdirectory(
+    name = "lib_arm64",
+    parent = ":msvc_tree",
+    path = "Tools/lib/arm64",
+)
+
+filegroup(
+    name = "lib_files_x64",
+    srcs = glob(["Tools/lib/x64/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "lib_files_x86",
+    srcs = glob(["Tools/lib/x86/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "lib_files_arm64",
+    srcs = glob(["Tools/lib/arm64/**/*.lib"], allow_empty = True),
+)
+
 # Binaries
 filegroup(
     name = "msvc_all_binaries_hostx64_targetx64",

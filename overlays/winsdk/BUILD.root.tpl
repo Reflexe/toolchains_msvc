@@ -174,6 +174,77 @@ filegroup(
     ),
 )
 
+# Per-arch WinSDK um/ and ucrt/ subdirectories + filegroups. The
+# directory labels are forwarded to /LIBPATH: by the toolchain's
+# local_config_cc_compat cc_args (when the extension's local_config_cc_compat
+# option is enabled); the filegroups carry the .lib files into the
+# link action's inputs.
+subdirectory(
+    name = "um_lib_x64",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/um/x64",
+)
+
+subdirectory(
+    name = "um_lib_x86",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/um/x86",
+)
+
+subdirectory(
+    name = "um_lib_arm64",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/um/arm64",
+)
+
+subdirectory(
+    name = "ucrt_lib_x64",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/ucrt/x64",
+)
+
+subdirectory(
+    name = "ucrt_lib_x86",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/ucrt/x86",
+)
+
+subdirectory(
+    name = "ucrt_lib_arm64",
+    parent = ":winsdk_tree",
+    path = "Lib/10.0.{winsdk_version}.0/ucrt/arm64",
+)
+
+filegroup(
+    name = "um_lib_files_x64",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/um/x64/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "um_lib_files_x86",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/um/x86/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "um_lib_files_arm64",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/um/arm64/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "ucrt_lib_files_x64",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/ucrt/x64/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "ucrt_lib_files_x86",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/ucrt/x86/**/*.lib"], allow_empty = True),
+)
+
+filegroup(
+    name = "ucrt_lib_files_arm64",
+    srcs = glob(["Lib/10.0.{winsdk_version}.0/ucrt/arm64/**/*.lib"], allow_empty = True),
+)
+
 exports_files(
     glob(["**/*"]),  # or narrower patterns
     visibility = ["//visibility:public"],

@@ -284,6 +284,7 @@ def _extension_impl(module_ctx):
     all_llvm_versions = []
     all_winsdk_versions = []
     all_extra_msvc_packages = []
+    any_local_config_cc_compat = False
 
     for group in toolchain_sets:
         group_name = group.name
@@ -334,6 +335,7 @@ def _extension_impl(module_ctx):
         all_llvm_versions = _unique_values(all_llvm_versions + llvm_repo_versions)
         all_winsdk_versions = _unique_values(all_winsdk_versions + winsdk_versions)
         all_extra_msvc_packages = _unique_values(all_extra_msvc_packages + group.extra_msvc_packages)
+        any_local_config_cc_compat = any_local_config_cc_compat or group.local_config_cc_compat
 
         # Resolve flags (merge defaults with replace/add from each toolchain_set) in the extension.
         msvc_default_c_compile_flags = merge_flags(CL_C_COMPILE_FLAGS_DEFAULT, group.cl_copt, group.add_cl_copt)
@@ -609,6 +611,7 @@ def _extension_impl(module_ctx):
         targets = all_targets,
         hosts = all_hosts,
         extra_msvc_packages = all_extra_msvc_packages,
+        local_config_cc_compat = any_local_config_cc_compat,
         default_msvc_version = default_msvc_for_repo,
         default_clang_version = default_llvm_for_repo,
         default_windows_sdk_version = default_winsdk_for_repo,
@@ -667,6 +670,10 @@ toolchain_set_tag = tag_class(
         "extra_msvc_packages": attr.string_list(
             default = [],
             doc = "Optional MSVC packages to opt into. Currently supported: `atl` (Visual C++ ATL headers and atls.lib, ~30-60 MB compressed per host/target). The opt-in is a union across all `toolchain_set` invocations in the same module graph. When opted in, ATL libs are exposed as `cc_import` targets on the aggregate facade (e.g. `@msvc_toolchains//msvc/lib:atls`).",
+        ),
+        "local_config_cc_compat": attr.bool(
+            default = False,
+            doc = "Restore link-line parity with Bazel's auto-detected default Windows CC toolchain (`@local_config_cc`, configured by `@bazel_tools//tools/cpp:cc_configure.bzl`), which inherits the host's vcvars `LIB` environment variable so that link.exe finds Windows SDK `um/<arch>/` + `ucrt/<arch>/` + MSVC `Tools/lib/<arch>/` automatically. This toolchain ships with `/NODEFAULTLIB` on every link by default, which suppresses both #pragma comment(lib, ...) directives baked into .obj metadata (CRT, abseil debugging, etc.) AND explicit /DEFAULTLIB:foo linkopts that BCR modules commonly emit — forcing every system lib to be an explicit `cc_import` dep. That's the documented hermetic UX, but it breaks the common case of consuming BCR Windows code (protobuf bare-name `Shell32.lib` linkopt; abseil `linkopts = [\"-DEFAULTLIB:dbghelp.lib\"]`; many other BCR modules with similar patterns) that builds cleanly under `@local_config_cc` because the linker search path was populated by vcvars. When True, this toolchain set drops `/NODEFAULTLIB` from base link flags and adds `/LIBPATH:` for the active target's WinSDK `um/`, WinSDK `ucrt/`, and MSVC `Tools/lib/` directories — effectively reconstructing the same link-line surface `@local_config_cc` provides via vcvars, but hermetically (resolved labels, not env vars). Off by default; opt in per-toolchain_set, not via Bazel cc_features (the /NODEFAULTLIB removal isn't expressible as an additive cc_args block, and modelling it as a default-on cc_feature paired with a mutually-exclusive opt-in feature would force consumers to set two flags for one logical link-mode toggle). The opt-in is a union across `toolchain_set` invocations: if any group sets it, every group's link line gets the compatibility flags.",
         ),
         "features": attr.string_list(
             default = [],
