@@ -54,6 +54,7 @@ load("//private:msvc_repo.bzl", "msvc_repo")
 load("//private:msvc_toolchains_repo.bzl", "msvc_toolchains_repo")
 load(
     "//private:vs_channel_manifest.bzl",
+    "KNOWN_EXTRA_PACKAGES",
     "VALID_MSVC_HOSTS",
     "VALID_MSVC_TARGETS",
     "download_and_map",
@@ -282,6 +283,7 @@ def _extension_impl(module_ctx):
     all_msvc_versions = []
     all_llvm_versions = []
     all_winsdk_versions = []
+    all_extra_msvc_packages = []
 
     for group in toolchain_sets:
         group_name = group.name
@@ -322,12 +324,16 @@ def _extension_impl(module_ctx):
         for t in targets:
             if t not in VALID_MSVC_TARGETS:
                 fail("Invalid target '{}' in toolchain_set '{}', must be one of: {}".format(t, group_name, VALID_MSVC_TARGETS))
+        for extra in group.extra_msvc_packages:
+            if extra not in KNOWN_EXTRA_PACKAGES:
+                fail("Invalid extra_msvc_package '{}' in toolchain_set '{}', must be one of: {}".format(extra, group_name, sorted(KNOWN_EXTRA_PACKAGES.keys())))
 
         all_targets = _unique_values(all_targets + targets)
         all_hosts = _unique_values(all_hosts + hosts)
         all_msvc_versions = _unique_values(all_msvc_versions + msvc_versions)
         all_llvm_versions = _unique_values(all_llvm_versions + llvm_repo_versions)
         all_winsdk_versions = _unique_values(all_winsdk_versions + winsdk_versions)
+        all_extra_msvc_packages = _unique_values(all_extra_msvc_packages + group.extra_msvc_packages)
 
         # Resolve flags (merge defaults with replace/add from each toolchain_set) in the extension.
         msvc_default_c_compile_flags = merge_flags(CL_C_COMPILE_FLAGS_DEFAULT, group.cl_copt, group.add_cl_copt)
@@ -470,7 +476,7 @@ def _extension_impl(module_ctx):
     for msvc_version in all_msvc_versions:
         msvc_package_map_key = msvc_versions_dict[msvc_version]
         msvc_packages_map = packages_maps[msvc_package_map_key]
-        deps = get_msvc_package_ids(msvc_packages_map, msvc_version, hosts = all_hosts, targets = all_targets)
+        deps = get_msvc_package_ids(msvc_packages_map, msvc_version, hosts = all_hosts, targets = all_targets, extra_msvc_packages = all_extra_msvc_packages)
 
         closest_redist, redist_package_map_key = _find_closest_redist_version(msvc_version, redist_versions_dict)
         redist_packages_map = packages_maps[redist_package_map_key]
@@ -602,6 +608,7 @@ def _extension_impl(module_ctx):
         winsdk_versions = all_winsdk_versions,
         targets = all_targets,
         hosts = all_hosts,
+        extra_msvc_packages = all_extra_msvc_packages,
         default_msvc_version = default_msvc_for_repo,
         default_clang_version = default_llvm_for_repo,
         default_windows_sdk_version = default_winsdk_for_repo,
@@ -656,6 +663,10 @@ toolchain_set_tag = tag_class(
         "winsdk_versions": attr.string_list(
             default = [],
             doc = "Windows SDK versions for this toolchain set. Must have at least one element.",
+        ),
+        "extra_msvc_packages": attr.string_list(
+            default = [],
+            doc = "Optional MSVC packages to opt into. Currently supported: `atl` (Visual C++ ATL headers and atls.lib, ~30-60 MB compressed per host/target). The opt-in is a union across all `toolchain_set` invocations in the same module graph. When opted in, ATL libs are exposed as `cc_import` targets on the aggregate facade (e.g. `@msvc_toolchains//msvc/lib:atls`).",
         ),
         "features": attr.string_list(
             default = [],

@@ -97,6 +97,7 @@ cc_args(
     allowlist_include_directories = [
         "//llvm/include:clang_builtin_include_host{host}",
         "//msvc/include:include_dir",
+        "//msvc/include:atlmfc_include",
         "//winsdk/include:ucrt_include",
         "//winsdk/include:um_include",
         "//winsdk/include:shared_include",
@@ -105,6 +106,7 @@ cc_args(
         "/external:W0",
         "/external:I{clang_builtin_include}",
         "/external:I{msvc_include}",
+        "/external:I{msvc_atlmfc_include}",
         "/external:I{winsdk_ucrt_include}",
         "/external:I{winsdk_um_include}",
         "/external:I{winsdk_shared_include}",
@@ -112,6 +114,7 @@ cc_args(
     data = [
         "//llvm/include:clang_builtin_include_files_host{host}",
         "//msvc/include:all_includes",
+        "//msvc/include:atlmfc_include_files",
         "//winsdk/include:um_include_files",
         "//winsdk/include:ucrt_include_files",
         "//winsdk/include:shared_include_files",
@@ -119,6 +122,7 @@ cc_args(
     format = {
         "clang_builtin_include": "//llvm/include:clang_builtin_include_host{host}",
         "msvc_include": "//msvc/include:include_dir",
+        "msvc_atlmfc_include": "//msvc/include:atlmfc_include",
         "winsdk_ucrt_include": "//winsdk/include:ucrt_include",
         "winsdk_um_include": "//winsdk/include:um_include",
         "winsdk_shared_include": "//winsdk/include:shared_include",

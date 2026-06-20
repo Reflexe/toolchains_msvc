@@ -306,6 +306,7 @@ directory(
     srcs = glob(
         [
             "Tools/include/**",
+            "Tools/atlmfc/include/**",
             "Tools/lib/x64/**",
             "Tools/lib/x86/**",
             "Tools/lib/arm64/**",
@@ -328,6 +329,29 @@ subdirectory(
     name = "include_dir",
     parent = ":msvc_tree",
     path = "Tools/include",
+)
+
+# The :atlmfc_* labels mirror the on-disk Tools/atlmfc/ directory name
+# (Microsoft's canonical Visual C++ layout). Population is gated on
+# `toolchain.toolchain_set(extra_msvc_packages = ["atl"])` — without it, the .atl
+# packages are skipped by private/vs_channel_manifest.bzl::get_msvc_package_ids
+# and these globs match nothing, so the labels exist but resolve to empty.
+# The .mfc package id remains excluded unconditionally for now.
+subdirectory(
+    name = "atlmfc_include",
+    parent = ":msvc_tree",
+    path = "Tools/atlmfc/include",
+)
+
+filegroup(
+    name = "atlmfc_include_files",
+    srcs = glob(
+        [
+            "Tools/atlmfc/include/**/*.h",
+            "Tools/atlmfc/include/**/*.inl",
+        ],
+        allow_empty = True,
+    ),
 )
 
 filegroup(

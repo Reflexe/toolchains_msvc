@@ -57,6 +57,24 @@ set EXECROOT=%CD%
                 cl_wrapper_content,
             )
 
+    # The Tools/atlmfc/include/ subtree only exists when the caller opts in
+    # via `toolchain.toolchain_set(extra_msvc_packages = ["atl"])`. The
+    # :atlmfc_include subdirectory() label in BUILD.root.tpl is emitted
+    # unconditionally so the cc_args templated formats in
+    # overlays/toolchain/{msvc-cl,clang-cl,clang}/BUILD.toolchain.tpl
+    # resolve regardless of opt-in (bazel_skylib's subdirectory() rule
+    # validates the path against the globbed file tree). When not opted
+    # in, the directory is empty; an empty placeholder file keeps the
+    # subdirectory() label resolvable and cl.exe silently ignores
+    # /external:I paths that contain no headers, so non-opted-in builds
+    # see no behavior change. The Tools/atlmfc/lib/ side is gated
+    # entirely by the cc_import emission in
+    # private/msvc_toolchains_repo.bzl (no facade label exists when not
+    # opted in), so no placeholder is needed there.
+    atlmfc_include = "Tools/atlmfc/include"
+    if not ctx.path(atlmfc_include).exists:
+        ctx.file("{}/.placeholder".format(atlmfc_include), "")
+
     # Generate a BUILD file
     ctx.template(
         "BUILD.bazel",

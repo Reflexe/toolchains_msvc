@@ -100,11 +100,20 @@ VALID_MSVC_HOSTS = ["x86", "x64", "arm64"]
 # Valid values for targets: x86, x64, arm64
 VALID_MSVC_TARGETS = ["x86", "x64", "arm64"]
 
+# Optional MSVC packages that are excluded from the manifest scan by default
+# (because they bloat the download for users who don't need them) but can be
+# opted into via `toolchain.toolchain_set(extra_msvc_packages = [...])`. Maps the
+# user-facing name to the package id substring used by the default filter.
+KNOWN_EXTRA_PACKAGES = {
+    "atl": ".atl",
+}
+
 def get_msvc_package_ids(
         packages_map,
         version,
         hosts = None,
-        targets = None):
+        targets = None,
+        extra_msvc_packages = None):
     """Finds all dependencies for a specific MSVC version.
 
     Args:
@@ -114,6 +123,9 @@ def get_msvc_package_ids(
                Default None means include all hosts.
         targets: List of target architectures to include. Valid: x86, x64, arm64.
                  Default None means include all targets.
+        extra_msvc_packages: List of optional package names to opt into. Each name
+                 must be a key of `KNOWN_EXTRA_PACKAGES`. Default None means
+                 no opt-in (only the always-on package set is scanned).
 
     Returns:
         A list of package IDs sorted alphabetically.
@@ -122,6 +134,12 @@ def get_msvc_package_ids(
         hosts = VALID_MSVC_HOSTS
     if targets == None:
         targets = VALID_MSVC_TARGETS
+    if extra_msvc_packages == None:
+        extra_msvc_packages = []
+
+    for extra in extra_msvc_packages:
+        if extra not in KNOWN_EXTRA_PACKAGES:
+            fail("Unknown extra_msvc_package '{}', must be one of: {}".format(extra, sorted(KNOWN_EXTRA_PACKAGES.keys())))
 
     for h in hosts:
         if h not in VALID_MSVC_HOSTS:
@@ -181,13 +199,17 @@ def get_msvc_package_ids(
 
         is_match = False
         if current_id != root_id:
+            # Build the per-call list of forbidden id substrings, dropping any
+            # entry the caller opted back in via `extra_msvc_packages`.
+            opted_in_substrings = [KNOWN_EXTRA_PACKAGES[e] for e in extra_msvc_packages]
+            atl_opted_in = ".atl" in opted_in_substrings
             if (pid_lower.startswith(filter_prefix) and
                 pid_lower.endswith(".base") and
                 "spectre" not in pid_lower and
                 ".props" not in pid_lower and
                 ".servicing" not in pid_lower and
                 ".mfc" not in pid_lower and
-                ".atl" not in pid_lower and
+                (".atl" not in pid_lower or atl_opted_in) and
                 ".onecore" not in pid_lower and
                 ".cli" not in pid_lower and
                 ".ca." not in pid_lower and

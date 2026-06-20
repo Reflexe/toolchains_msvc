@@ -164,8 +164,18 @@ def _emit_msvc_facades(ctx, msvc_versions, hosts, targets):
     inc_content.append("alias(\n    name = \"include_dir\",\n    actual = {},\n)\n".format(
         _select_label("msvc", msvc_versions, lambda v: "@msvc_{}//:include_dir".format(v)),
     ))
+    # ATL include facade: mirrors the per-version :atlmfc_include label.
+    # Lib-side aggregate (//msvc/lib:atlmfc_lib_*) lands in the upstream
+    # system_libpaths follow-up patch when its consumer (the cc_feature
+    # that emits /LIBPATH: for atlmfc/lib) is added.
+    inc_content.append("alias(\n    name = \"atlmfc_include\",\n    actual = {},\n)\n".format(
+        _select_label("msvc", msvc_versions, lambda v: "@msvc_{}//:atlmfc_include".format(v)),
+    ))
     inc_content.append("filegroup(\n    name = \"all_includes\",\n    srcs = {},\n)\n".format(
         _select_list("msvc", msvc_versions, lambda v: "@msvc_{}//:msvc_all_includes".format(v)),
+    ))
+    inc_content.append("filegroup(\n    name = \"atlmfc_include_files\",\n    srcs = {},\n)\n".format(
+        _select_list("msvc", msvc_versions, lambda v: "@msvc_{}//:atlmfc_include_files".format(v)),
     ))
     ctx.file("msvc/include/BUILD.bazel", "\n".join(inc_content))
 
@@ -198,7 +208,7 @@ def _emit_winsdk_facades(ctx, winsdk_versions, hosts):
         ))
     ctx.file("winsdk/bin/BUILD.bazel", "\n".join(bin_content))
 
-def _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets):
+def _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets, extra_msvc_packages):
     """Generates //msvc/lib and //winsdk/lib (cc_import system libs + runtime-link file targets)."""
 
     # --- config_settings combining version flag + target cpu ---
@@ -255,6 +265,24 @@ def _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets):
                     _normalize_lib_name(lib_name),
                     config_name,
                     "@msvc_{}//:Tools/lib/{}/{}".format(msvc_version, target, lib_name.lower()),
+                )
+
+    # --- optional ATL libs (cc_import targets), gated on `extra_msvc_packages = ["atl"]` ---
+    # Mirrors the system-libs UX documented in the project README:
+    # `cc_library(deps = ["@msvc_toolchains//msvc/lib:atls"])` rather than
+    # bare-name linkopts + /LIBPATH:. atls is the only ATL static lib
+    # currently shipped by the Microsoft.VC.<v>.ATL.<arch>.base.vsix payload
+    # at Tools/atlmfc/lib/<arch>/atls.lib. Additional variants (atld.lib,
+    # atlsn.lib, atlsnd.lib) can be added here if a future SDK ships them.
+    if "atl" in extra_msvc_packages:
+        for msvc_version in msvc_versions:
+            for target in targets:
+                config_name = ":msvc{}_{}".format(msvc_version, target)
+                _add_lib_variant(
+                    msvc_libs,
+                    "atls",
+                    config_name,
+                    "@msvc_{}//:Tools/atlmfc/lib/{}/atls.lib".format(msvc_version, target),
                 )
 
     def _cc_imports(lib_map):
@@ -612,7 +640,7 @@ string_enum_flag(
     _emit_llvm_facades(ctx, llvm_versions, hosts, targets)
     _emit_msvc_facades(ctx, msvc_versions, hosts, targets)
     _emit_winsdk_facades(ctx, winsdk_versions, hosts)
-    _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets)
+    _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets, ctx.attr.extra_msvc_packages)
 
     return ctx.repo_metadata(reproducible = True)
 
@@ -683,6 +711,7 @@ msvc_toolchains_repo = repository_rule(
         "winsdk_versions": attr.string_list(mandatory = True),
         "targets": attr.string_list(mandatory = True),
         "hosts": attr.string_list(mandatory = True),
+        "extra_msvc_packages": attr.string_list(default = []),
         "default_msvc_version": attr.string(mandatory = True),
         "default_clang_version": attr.string(mandatory = False),
         "default_windows_sdk_version": attr.string(mandatory = True),
