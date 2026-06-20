@@ -101,6 +101,7 @@ cc_args(
         "//winsdk/include:ucrt_include",
         "//winsdk/include:um_include",
         "//winsdk/include:shared_include",
+        "//winsdk/include:cppwinrt_include",
     ],
     args = [
         "-isystem",
@@ -115,6 +116,8 @@ cc_args(
         "{winsdk_um_include}",
         "-isystem",
         "{winsdk_shared_include}",
+        "-isystem",
+        "{winsdk_cppwinrt_include}",
     ],
     data = [
         "//llvm/include:clang_builtin_include_files_host{host}",
@@ -123,6 +126,7 @@ cc_args(
         "//winsdk/include:um_include_files",
         "//winsdk/include:ucrt_include_files",
         "//winsdk/include:shared_include_files",
+        "//winsdk/include:cppwinrt_include_files",
     ],
     format = {
         "clang_builtin_include": "//llvm/include:clang_builtin_include_host{host}",
@@ -131,6 +135,7 @@ cc_args(
         "winsdk_ucrt_include": "//winsdk/include:ucrt_include",
         "winsdk_um_include": "//winsdk/include:um_include",
         "winsdk_shared_include": "//winsdk/include:shared_include",
+        "winsdk_cppwinrt_include": "//winsdk/include:cppwinrt_include",
     },
 )
 

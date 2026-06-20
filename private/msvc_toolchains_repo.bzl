@@ -182,12 +182,12 @@ def _emit_msvc_facades(ctx, msvc_versions, hosts, targets):
 def _emit_winsdk_facades(ctx, winsdk_versions, hosts):
     """Generates //winsdk/include and //winsdk/bin facades (select over //winsdk)."""
     inc_content = ["package(default_visibility = [\"//visibility:public\"])", ""]
-    for inc in ["ucrt_include", "um_include", "shared_include"]:
+    for inc in ["ucrt_include", "um_include", "shared_include", "cppwinrt_include"]:
         inc_content.append("alias(\n    name = \"{}\",\n    actual = {},\n)\n".format(
             inc,
             _select_label("winsdk", winsdk_versions, lambda v, inc = inc: "@winsdk_{}//:{}".format(v, inc)),
         ))
-    for inc in ["ucrt_include_files", "um_include_files", "shared_include_files"]:
+    for inc in ["ucrt_include_files", "um_include_files", "shared_include_files", "cppwinrt_include_files"]:
         inc_content.append("filegroup(\n    name = \"{}\",\n    srcs = {},\n)\n".format(
             inc,
             _select_list("winsdk", winsdk_versions, lambda v, inc = inc: "@winsdk_{}//:{}".format(v, inc)),

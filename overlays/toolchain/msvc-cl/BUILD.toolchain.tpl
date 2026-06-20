@@ -96,6 +96,7 @@ cc_args(
         "//winsdk/include:ucrt_include",
         "//winsdk/include:um_include",
         "//winsdk/include:shared_include",
+        "//winsdk/include:cppwinrt_include",
     ],
     args = [
         "/external:W0",
@@ -104,6 +105,7 @@ cc_args(
         "/external:I{winsdk_ucrt_include}",
         "/external:I{winsdk_um_include}",
         "/external:I{winsdk_shared_include}",
+        "/external:I{winsdk_cppwinrt_include}",
     ],
     data = [
         "//msvc/include:all_includes",
@@ -111,6 +113,7 @@ cc_args(
         "//winsdk/include:shared_include_files",
         "//winsdk/include:ucrt_include_files",
         "//winsdk/include:um_include_files",
+        "//winsdk/include:cppwinrt_include_files",
     ],
     format = {
         "msvc_include": "//msvc/include:include_dir",
@@ -118,6 +121,7 @@ cc_args(
         "winsdk_ucrt_include": "//winsdk/include:ucrt_include",
         "winsdk_um_include": "//winsdk/include:um_include",
         "winsdk_shared_include": "//winsdk/include:shared_include",
+        "winsdk_cppwinrt_include": "//winsdk/include:cppwinrt_include",
     },
 )
 
