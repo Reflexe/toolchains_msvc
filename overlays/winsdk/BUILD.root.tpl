@@ -12,6 +12,7 @@ directory(
             "Include/10.0.{winsdk_version}.0/um/**",
             "Include/10.0.{winsdk_version}.0/shared/**",
             "Include/10.0.{winsdk_version}.0/cppwinrt/**",
+            "Include/10.0.{winsdk_version}.0/winrt/**",
             "Lib/10.0.{winsdk_version}.0/um/x64/**",
             "Lib/10.0.{winsdk_version}.0/ucrt/x64/**",
             "Lib/10.0.{winsdk_version}.0/um/x86/**",
@@ -151,6 +152,23 @@ filegroup(
         [
             "Include/10.0.{winsdk_version}.0/cppwinrt/**/*.h",
             "Include/10.0.{winsdk_version}.0/cppwinrt/**/*.hpp",
+        ],
+        allow_empty = True,
+    ),
+)
+
+subdirectory(
+    name = "winrt_include",
+    parent = ":winsdk_tree",
+    path = "Include/10.0.{winsdk_version}.0/winrt",
+)
+
+filegroup(
+    name = "winrt_include_files",
+    srcs = glob(
+        [
+            "Include/10.0.{winsdk_version}.0/winrt/**/*.h",
+            "Include/10.0.{winsdk_version}.0/winrt/**/*.idl",
         ],
         allow_empty = True,
     ),
