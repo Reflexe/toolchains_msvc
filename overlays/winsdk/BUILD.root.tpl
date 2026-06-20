@@ -111,6 +111,34 @@ filegroup(
     ),
 )
 
+# Runfile bundles for the other SDK bin tools exposed via
+# private/msvc_toolchains_repo.bzl::WINSDK_BIN_TOOLS. Mirrors the rc_files
+# pattern. Standalone tools (cppwinrt, makepri, mc, mdmerge) have a
+# single-file bundle containing just <tool>.exe; midl, midlrt, and mt
+# pull in their sidecar DLL/config files so sandboxed actions can execute.
+_WINSDK_BIN_TOOL_SIDECARS = {
+    "cppwinrt": [],
+    "makepri": [],
+    "mc": [],
+    "mdmerge": [],
+    "midl": ["midlc.exe", "midlrtmd.dll"],
+    "midlrt": ["midlrtmd.dll"],
+    "mt": ["mt.exe.config"],
+}
+
+[
+    filegroup(
+        name = "{}_files_{}".format(tool, host),
+        srcs = glob(
+            ["bin/10.0.{winsdk_version}.0/" + host + "/" + tool + ".exe"] +
+            ["bin/10.0.{winsdk_version}.0/" + host + "/" + sidecar for sidecar in sidecars],
+            allow_empty = True,
+        ),
+    )
+    for tool, sidecars in _WINSDK_BIN_TOOL_SIDECARS.items()
+    for host in ["x64", "x86", "arm64"]
+]
+
 subdirectory(
     name = "cppwinrt_include",
     parent = ":winsdk_tree",

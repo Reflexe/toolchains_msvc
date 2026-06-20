@@ -17,6 +17,30 @@ right baked tools. Only the version axes use `select()`.
 load("//private:libs.bzl", "msvc_lib", "ucrt_lib", "um_lib")
 load("//private:utils.bzl", "convert_msvc_arch_to_bazel_arch", "convert_msvc_arch_to_clang_target", "msvc_version_to_cl_internal_version")
 
+# Windows SDK bin/ tools exposed on the aggregate //winsdk/bin facade.
+# Each entry maps a tool stem (used as the alias name suffix) to its
+# runfile siblings under bin/10.0.<ver>.0/<host>/. The .exe itself is
+# always implicitly included. Most tools are standalone; those with
+# sidecar DLLs / config files need them in the runfiles bundle so
+# sandboxed actions can execute the .exe.
+#
+# Each tool gets two facade labels per host:
+#   //winsdk/bin:<tool>_<host>        - single-file alias to <tool>.exe
+#                                       (usable as cc_tool `src` or as a
+#                                       Starlark attr.label(executable=True))
+#   //winsdk/bin:<tool>_files_<host>  - filegroup with <tool>.exe + sidecars
+#                                       (usable as cc_tool/cc_args `data`
+#                                       or as a Starlark attr.label(allow_files))
+WINSDK_BIN_TOOLS = {
+    "cppwinrt": [],
+    "makepri": [],
+    "mc": [],
+    "mdmerge": [],
+    "midl": ["midlc.exe", "midlrtmd.dll"],
+    "midlrt": ["midlrtmd.dll"],
+    "mt": ["mt.exe.config"],
+}
+
 def _normalize_lib_name(lib_name):
     """Returns lowercase name without .lib extension."""
     name = lib_name.lower()
@@ -206,6 +230,20 @@ def _emit_winsdk_facades(ctx, winsdk_versions, hosts):
             host,
             _select_list("winsdk", winsdk_versions, lambda v, host = host: "@winsdk_{}//:rc_files_{}".format(v, host)),
         ))
+        # Other SDK bin tools that callers wire as cc_tool `src` or as a
+        # Starlark rule attr `default`. Each tool gets both a single-file
+        # alias (for `executable = True` consumers) and a `_files_<host>`
+        # filegroup (for `data` consumers that need the .exe + any sidecar
+        # DLLs/config files in the sandbox).
+        for tool in WINSDK_BIN_TOOLS.keys():
+            bin_content.append("alias(\n    name = \"{}_{}\",\n    actual = {},\n)\n".format(
+                tool, host,
+                _select_label("winsdk", winsdk_versions, lambda v, host = host, tool = tool: "@winsdk_{}//:bin/10.0.{}.0/{}/{}.exe".format(v, v, host, tool)),
+            ))
+            bin_content.append("filegroup(\n    name = \"{}_files_{}\",\n    srcs = {},\n)\n".format(
+                tool, host,
+                _select_list("winsdk", winsdk_versions, lambda v, host = host, tool = tool: "@winsdk_{}//:{}_files_{}".format(v, tool, host)),
+            ))
     ctx.file("winsdk/bin/BUILD.bazel", "\n".join(bin_content))
 
 def _emit_lib_packages(ctx, msvc_versions, winsdk_versions, targets, extra_msvc_packages):
