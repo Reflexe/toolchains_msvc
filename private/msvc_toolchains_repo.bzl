@@ -48,6 +48,37 @@ def _normalize_lib_name(lib_name):
         return name[:-4]
     return name
 
+# Emits a cc_args block that adds /LIBPATH: for the WinSDK um/, WinSDK ucrt/,
+# and MSVC Tools/lib/ directories of the active toolchain. The block is
+# injected into per-frontend BUILD.toolchain.tpl as the {system_vc_compat_args}
+# substitution when the system_vc_compat extension parameter is True.
+# `{target}` placeholders are pre-substituted in Python (not ctx.template) to
+# avoid clashing with cc_args.format keys.
+def _system_vc_compat_args_block(target):
+    return """
+cc_args(
+    name = "system_vc_compat_libpaths",
+    actions = [
+        "@rules_cc//cc/toolchains/actions:link_actions",
+    ],
+    args = [
+        "/LIBPATH:{winsdk_um}",
+        "/LIBPATH:{winsdk_ucrt}",
+        "/LIBPATH:{msvc_lib}",
+    ],
+    data = [
+        "//winsdk/lib:um_libpath_TARGET",
+        "//winsdk/lib:ucrt_libpath_TARGET",
+        "//msvc/lib:lib_libpath_TARGET",
+    ],
+    format = {
+        "winsdk_um": "//winsdk/lib:um_libpath_TARGET",
+        "winsdk_ucrt": "//winsdk/lib:ucrt_libpath_TARGET",
+        "msvc_lib": "//msvc/lib:lib_libpath_TARGET",
+    },
+)
+""".replace("TARGET", target)
+
 def _add_lib_variant(lib_map, lib_name, config_name, label):
     variants = lib_map.get(lib_name)
     if variants == None:
@@ -383,6 +414,22 @@ package(default_visibility = ["//visibility:public"])
 
 """ + winsdk_cfg + _cc_imports(winsdk_libs)
     winsdk_content = _rt_winsdk(winsdk_content)
+    # Aggregate per-arch :{um,ucrt}_libpath_<target> aliases (subdirectory
+    # handles forwarded to /LIBPATH:) and matching :_lib_files_<target>
+    # filegroups (carry the .lib files into link inputs) for the system_vc_compat
+    # cc_args in the per-toolchain template.
+    for kind in ["um", "ucrt"]:
+        for target in targets:
+            winsdk_content += "\nalias(\n    name = \"{kind}_libpath_{target}\",\n    actual = {actual},\n)\n".format(
+                kind = kind,
+                target = target,
+                actual = _select_label("winsdk", winsdk_versions, lambda v, kind = kind, target = target: "@winsdk_{}//:{}_lib_{}".format(v, kind, target)),
+            )
+            winsdk_content += "\nfilegroup(\n    name = \"{kind}_lib_files_{target}\",\n    srcs = {srcs},\n)\n".format(
+                kind = kind,
+                target = target,
+                srcs = _select_list("winsdk", winsdk_versions, lambda v, kind = kind, target = target: "@winsdk_{}//:{}_lib_files_{}".format(v, kind, target)),
+            )
     ctx.file("winsdk/lib/BUILD.bazel", winsdk_content)
 
     msvc_content = """load("@rules_cc//cc:defs.bzl", "cc_import")
@@ -391,6 +438,17 @@ package(default_visibility = ["//visibility:public"])
 
 """ + msvc_cfg + _cc_imports(msvc_libs)
     msvc_content = _rt_msvc(msvc_content)
+    # Aggregate per-arch :lib_libpath_<target> aliases + :lib_files_<target>
+    # filegroups (see _emit_lib_packages winsdk-side comment for rationale).
+    for target in targets:
+        msvc_content += "\nalias(\n    name = \"lib_libpath_{target}\",\n    actual = {actual},\n)\n".format(
+            target = target,
+            actual = _select_label("msvc", msvc_versions, lambda v, target = target: "@msvc_{}//:lib_{}".format(v, target)),
+        )
+        msvc_content += "\nfilegroup(\n    name = \"lib_files_{target}\",\n    srcs = {srcs},\n)\n".format(
+            target = target,
+            srcs = _select_list("msvc", msvc_versions, lambda v, target = target: "@msvc_{}//:lib_files_{}".format(v, target)),
+        )
     ctx.file("msvc/lib/BUILD.bazel", msvc_content)
 
 def _msvc_toolchains_repo_impl(ctx):
@@ -533,7 +591,16 @@ package(default_visibility = ["//visibility:public"])
         "@{llvm_repo}//:lld_link_exe_only_{suffix}",
     ],
 )""".format(llvm_repo = lld_link_llvm_repo, suffix = suffix)
-                    base_link_flags = """base_link_flags = [
+                    if ctx.attr.system_vc_compat:
+                        base_link_flags = """base_link_flags = [
+    "/lldignoreenv",
+    "/INCREMENTAL:NO",
+    "/PDBALTPATH:%_PDB%",
+    "/Brepro",
+    "/pdbsourcepath:.",
+]"""
+                    else:
+                        base_link_flags = """base_link_flags = [
     "/lldignoreenv",
     "/NODEFAULTLIB",
     "/INCREMENTAL:NO",
@@ -549,7 +616,16 @@ package(default_visibility = ["//visibility:public"])
         "//msvc/bin:all_binaries_{suffix}",
     ],
 )""".format(suffix = suffix)
-                    base_link_flags = """base_link_flags = [
+                    if ctx.attr.system_vc_compat:
+                        base_link_flags = """base_link_flags = [
+    "/nologo",
+    "/INCREMENTAL:NO",
+    "/experimental:deterministic",
+    "/Brepro",
+    "/PDBALTPATH:%_PDB%",
+]"""
+                    else:
+                        base_link_flags = """base_link_flags = [
     "/nologo",
     "/NODEFAULTLIB",
     "/INCREMENTAL:NO",
@@ -559,6 +635,12 @@ package(default_visibility = ["//visibility:public"])
 ]"""
 
                 msvc_toolchain_name = "{}_msvc-cl_{}".format(group_name, suffix)
+                if ctx.attr.system_vc_compat:
+                    system_vc_compat_args = _system_vc_compat_args_block(target)
+                    system_vc_compat_toolchain_arg = '"system_vc_compat_libpaths",'
+                else:
+                    system_vc_compat_args = ""
+                    system_vc_compat_toolchain_arg = ""
                 ctx.template(
                     "{}/toolchain/{}/BUILD.bazel".format(group_prefix, msvc_toolchain_name),
                     ctx.attr.src_toolchain_msvc,
@@ -567,6 +649,8 @@ package(default_visibility = ["//visibility:public"])
                         "{compiler}": "msvc-cl",
                         "{link_cc_tool}": link_cc_tool,
                         "{base_link_flags}": base_link_flags,
+                        "{system_vc_compat_args}": system_vc_compat_args,
+                        "{system_vc_compat_toolchain_arg}": system_vc_compat_toolchain_arg,
                         "{target}": target,
                         "{host}": host,
                         "{suffix}": suffix,
@@ -592,6 +676,14 @@ package(default_visibility = ["//visibility:public"])
 
                 for compiler, src_attr in [("clang", ctx.attr.src_toolchain_clang), ("clang-cl", ctx.attr.src_toolchain_clang_cl)]:
                     tc_name = "{}_{}_{}".format(group_name, compiler, suffix)
+                    if ctx.attr.system_vc_compat:
+                        system_vc_compat_args = _system_vc_compat_args_block(target)
+                        system_vc_compat_toolchain_arg = '":system_vc_compat_libpaths",'
+                        nodefaultlib_line = ""
+                    else:
+                        system_vc_compat_args = ""
+                        system_vc_compat_toolchain_arg = ""
+                        nodefaultlib_line = '        "/NODEFAULTLIB",\n'
                     ctx.template(
                         "{}/toolchain/{}/BUILD.bazel".format(group_prefix, tc_name),
                         src_attr,
@@ -600,6 +692,9 @@ package(default_visibility = ["//visibility:public"])
                             "{compiler}": compiler,
                             "{clang_target}": clang_target,
                             "{ms_compat_version_select}": ms_compat_select,
+                            "{system_vc_compat_args}": system_vc_compat_args,
+                            "{system_vc_compat_toolchain_arg}": system_vc_compat_toolchain_arg,
+                            "{nodefaultlib_line}": nodefaultlib_line,
                             "{target}": target,
                             "{host}": host,
                             "{suffix}": suffix,
@@ -750,6 +845,7 @@ msvc_toolchains_repo = repository_rule(
         "targets": attr.string_list(mandatory = True),
         "hosts": attr.string_list(mandatory = True),
         "extra_msvc_packages": attr.string_list(default = []),
+        "system_vc_compat": attr.bool(default = False),
         "default_msvc_version": attr.string(mandatory = True),
         "default_clang_version": attr.string(mandatory = False),
         "default_windows_sdk_version": attr.string(mandatory = True),

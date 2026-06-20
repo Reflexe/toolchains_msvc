@@ -284,6 +284,7 @@ def _extension_impl(module_ctx):
     all_llvm_versions = []
     all_winsdk_versions = []
     all_extra_msvc_packages = []
+    any_system_vc_compat = False
 
     for group in toolchain_sets:
         group_name = group.name
@@ -334,6 +335,7 @@ def _extension_impl(module_ctx):
         all_llvm_versions = _unique_values(all_llvm_versions + llvm_repo_versions)
         all_winsdk_versions = _unique_values(all_winsdk_versions + winsdk_versions)
         all_extra_msvc_packages = _unique_values(all_extra_msvc_packages + group.extra_msvc_packages)
+        any_system_vc_compat = any_system_vc_compat or group.system_vc_compat
 
         # Resolve flags (merge defaults with replace/add from each toolchain_set) in the extension.
         msvc_default_c_compile_flags = merge_flags(CL_C_COMPILE_FLAGS_DEFAULT, group.cl_copt, group.add_cl_copt)
@@ -609,6 +611,7 @@ def _extension_impl(module_ctx):
         targets = all_targets,
         hosts = all_hosts,
         extra_msvc_packages = all_extra_msvc_packages,
+        system_vc_compat = any_system_vc_compat,
         default_msvc_version = default_msvc_for_repo,
         default_clang_version = default_llvm_for_repo,
         default_windows_sdk_version = default_winsdk_for_repo,
@@ -667,6 +670,10 @@ toolchain_set_tag = tag_class(
         "extra_msvc_packages": attr.string_list(
             default = [],
             doc = "Optional MSVC packages to opt into. Currently supported: `atl` (Visual C++ ATL headers and atls.lib, ~30-60 MB compressed per host/target). The opt-in is a union across all `toolchain_set` invocations in the same module graph. When opted in, ATL libs are exposed as `cc_import` targets on the aggregate facade (e.g. `@msvc_toolchains//msvc/lib:atls`).",
+        ),
+        "system_vc_compat": attr.bool(
+            default = False,
+            doc = "When True, switch this toolchain set into a MSBuild / Visual Studio compatibility link mode: drop /NODEFAULTLIB from base link flags and add /LIBPATH: for the active toolchain's WinSDK um/, WinSDK ucrt/, and MSVC Tools/lib/ directories. This allows #pragma comment(lib, ...) directives in headers (CRT, abseil, etc.) and bare-name linkopts (`linkopts = [\"Shell32.lib\"]`) emitted by BCR modules to resolve naturally, matching MSBuild's default link behaviour. Off by default; opt in per-toolchain_set, not via Bazel features (the /NODEFAULTLIB removal isn't expressible as an additive cc_args block). The opt-in is a union across `toolchain_set` invocations: if any group sets it, every group's link line gets the compatibility flags.",
         ),
         "features": attr.string_list(
             default = [],

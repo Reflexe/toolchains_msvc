@@ -84,7 +84,7 @@ cc_args(
     ],
     args = base_link_flags
 )
-
+{system_vc_compat_args}
 cc_args(
     name = "include_paths",
     actions = [
@@ -269,6 +269,7 @@ cc_toolchain(
         "release_static_runtime_link",
         "debug_dynamic_runtime_link",
         "debug_static_runtime_link",
+        {system_vc_compat_toolchain_arg}
     ],
     artifact_name_patterns = [
         "{artifacts_package}:executable",
