@@ -1,4 +1,5 @@
 load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
 load("@rules_cc//cc/toolchains:tool.bzl", "cc_tool")
 load("@rules_cc//cc/toolchains:tool_map.bzl", "cc_tool_map")
 load("@rules_cc//cc/toolchains:toolchain.bzl", "cc_toolchain")
@@ -137,6 +138,13 @@ cc_args(
     },
 )
 
+# See msvc-cl/BUILD.toolchain.tpl :system_include_paths for rationale.
+cc_feature(
+    name = "system_include_paths",
+    args = [":include_paths"],
+    feature_name = "system_include_paths",
+)
+
 cc_args(
     name = "release_dynamic_runtime_link",
     actions = [
@@ -248,7 +256,6 @@ cc_toolchain(
     args = [
         ":base_compile_flags",
         ":base_link_flags",
-        ":include_paths",
         ":release_dynamic_runtime_link",
         ":release_static_runtime_link",
         ":debug_dynamic_runtime_link",
@@ -264,10 +271,12 @@ cc_toolchain(
     ],
     enabled_features = [
         "{features_package}/msvc:default_features",
+        ":system_include_paths",
         "{features_package}/msvc:no_dotd_file",
         "{features_package}/msvc:parse_showincludes",
     ],
     known_features = [
+        ":system_include_paths",
         "{features_package}/msvc:all_known_features",
     ],
     tool_map = ":all_tools",

@@ -1,4 +1,5 @@
 load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
 load("@rules_cc//cc/toolchains:tool.bzl", "cc_tool")
 load("@rules_cc//cc/toolchains:tool_map.bzl", "cc_tool_map")
 load("@rules_cc//cc/toolchains:toolchain.bzl", "cc_toolchain")
@@ -129,6 +130,29 @@ cc_args(
     },
 )
 
+# Wrap :include_paths in a default-on cc_feature so its /external:I args are
+# positioned AFTER consumer cc_library `includes` in the final cl.exe command
+# line. cl.exe respects cmdline-order for #include "..." search: an
+# /external:I path appearing before a consumer /I path will shadow a local
+# header with the same name as a system header (e.g. curl's lib/share.h vs
+# the UCRT's ucrt/share.h, or any consumer with project headers named like
+# C99 short headers). With the args attached via cc_toolchain.args directly,
+# the toolchain's /external:I dirs are emitted FIRST and break any consumer
+# with a same-named local header. With the args attached via a cc_feature in
+# enabled_features, rules_cc emits them AFTER user includes, restoring the
+# legacy ordering that matches MSBuild/VS default behavior (project
+# Additional Include Directories before SDK).
+#
+# Defined alongside :include_paths (rather than in BUILD.features.tpl)
+# because cc_feature.args = [":include_paths"] is a label local to this
+# per-toolchain template package; cross-package label resolution from
+# features.tpl is not expressible without a {toolchain_package} placeholder.
+cc_feature(
+    name = "system_include_paths",
+    args = [":include_paths"],
+    feature_name = "system_include_paths",
+)
+
 cc_args(
     name = "release_dynamic_runtime_link",
     actions = [
@@ -241,7 +265,6 @@ cc_toolchain(
         "base_compile_flags",
         "base_link_flags",
         "base_ar_flags",
-        "include_paths",
         "release_dynamic_runtime_link",
         "release_static_runtime_link",
         "debug_dynamic_runtime_link",
@@ -257,10 +280,12 @@ cc_toolchain(
     ],
     enabled_features = [
         "{features_package}/msvc:default_features",
+        ":system_include_paths",
         "{features_package}/msvc:no_dotd_file",
         "{features_package}/msvc:parse_showincludes",
     ],
     known_features = [
+        ":system_include_paths",
         "{features_package}/msvc:all_known_features",
     ],
     tool_map = ":all_tools",
